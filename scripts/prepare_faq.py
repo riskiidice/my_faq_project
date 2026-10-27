@@ -2,14 +2,21 @@
 import argparse
 import csv
 import json
+import pandas as pd
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description="Prepare the local TechQA FAQ CSV.")
+parser = argparse.ArgumentParser(
+    description="Prepare the local TechQA FAQ CSV.")
 parser.add_argument(
     "--full",
     action="store_true",
     help="write every complete, answerable source row to data/faq-full.csv",
 )
+
+parser.add_argument(
+    "--report", action="store_true", help="show a report about the FAQ tables"
+)
+
 args = parser.parse_args()
 
 all_source_rows = json.loads(
@@ -27,7 +34,8 @@ print(
     first_record["question"].splitlines()[0],
 )
 first_answer = first_record["answer"]
-print("first answer:", type(first_answer).__name__, len(first_answer), "characters")
+print("first answer:", type(first_answer).__name__,
+      len(first_answer), "characters")
 print(
     "impossible records:",
     sum(row.get("is_impossible", False) for row in all_source_rows),
@@ -122,7 +130,8 @@ print(
     "selected answers with line breaks:",
     sum("\n" in answer for answer in selected_answers),
 )
-print("selected answer length range:", min(answer_lengths), max(answer_lengths))
+print("selected answer length range:", min(
+    answer_lengths), max(answer_lengths))
 
 prepared_rows = []
 for faq_id, topic, source_id, question in faq_sources:
@@ -176,6 +185,7 @@ if args.full:
             (f"TECHQA-{source_id}", "unclassified", question, answer)
         )
 
+
 print("Prepared FAQs:", len(prepared_rows))
 output_path = Path("data/faq-full.csv" if args.full else "data/faq.csv")
 
@@ -188,3 +198,37 @@ print("Output:", output_path)
 if args.full:
     guided_count = sum(row[0].startswith("FAQ-") for row in prepared_rows)
     print("Guided FAQs:", guided_count)
+
+
+if args.report:
+    df = pd.read_csv("data/faq.csv")
+    print("shape:", df.shape)
+    print("columns:", list(df.columns))
+    df['answer_chars'] = df['answer'].str.len()
+    print(df[["id", "topic", "answer_chars"]].head(3).to_string(index=False))
+    missing = df.isna().sum()
+    print("missing value by columns:")
+    print(missing[missing > 0].to_string())
+    blank_answers = df["answer"].fillna("").str.strip().eq("").sum()
+    print("blank answers:", blank_answers)
+    print("FAQs by topic:")
+    print(df["topic"].value_counts().sort_index().to_string())
+    print("average answer characters by topic:")
+    print(df.groupby("topic")['answer_chars'].mean().round(1))
+    full_df = pd.read_csv("data/faq-full.csv")
+    print("guided sample rows:", len(df))
+    print("full answerable rows:", len(full_df))
+    print("additional real source rows:", len(full_df) - len(df))
+    print(
+        "unclassified full-corpus rows:",
+        int(full_df["topic"].eq("unclassified").sum()),
+    )
+    guided_ids = set(df["id"])
+    print("guided IDs present in full:", int(
+        full_df["id"].isin(guided_ids).sum()))
+    longest = df.loc[df["answer_chars"].idxmax()]
+    shortest = df.loc[df["answer_chars"].idxmin()]
+    print("longest answer:", longest["id"], int(longest["answer_chars"]))
+    print("shortest answer:", shortest["id"], int(shortest["answer_chars"]))
+
+    raise SystemExit(0)
