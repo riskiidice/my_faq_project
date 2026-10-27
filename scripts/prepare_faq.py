@@ -35,3 +35,34 @@ source_rows = [
     if not row.get("is_impossible", False)
 ]
 print("Answerable records:", len(source_rows))
+
+
+keyword = "candledata"
+for row in source_rows:
+    if keyword in row["question"].lower():
+        print(row["id"], row["question"].splitlines()[0])
+
+
+faq_sources = [
+    ("FAQ-001", "product_info", "TRAIN_Q030",
+     "Does DataPower support SHA-2 certificates?"),
+    ("FAQ-002", "product_info", "TRAIN_Q046",
+     "Does the Linux KVM monitoring agent support CANDLEDATA?"),
+    ("FAQ-003", "product_info", "TRAIN_Q056",
+     "What does wpcollector do in WebSphere Portal?"),
+    ("FAQ-004", "product_info", "TRAIN_Q066",
+     "Is a 64-bit Log File Agent available for Windows?"),
+]
+faq_sources.extend([
+    ("FAQ-005", "compatibility", "TRAIN_Q008",
+     "Is RequisitePro supported by 64-bit RAD or RSA?"),
+    ("FAQ-006", "compatibility", "TRAIN_Q013",
+     "Can a TIP 2.2 fix pack be installed directly on TIP 2.1?"),
+    ("FAQ-007", "compatibility", "TRAIN_Q017",
+     "Which Oracle version is listed for Portal 6.1.0.6?"),
+    ("FAQ-008", "compatibility", "TRAIN_Q050",
+     "Does JazzSM 1.1.2.1 support HTTP access?"),
+])
+print("Case file:", len(faq_sources), "of 16 found")
+print("Product info tickets:", sum(
+    row[1] == "product_info" for row in faq_sources))
