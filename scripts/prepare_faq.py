@@ -1,7 +1,16 @@
 # scripts/prepare_faq.py
+import argparse
 import csv
 import json
 from pathlib import Path
+
+parser = argparse.ArgumentParser(description="Prepare the local TechQA FAQ CSV.")
+parser.add_argument(
+    "--full",
+    action="store_true",
+    help="write every complete, answerable source row to data/faq-full.csv",
+)
+args = parser.parse_args()
 
 all_source_rows = json.loads(
     Path("data/source/train.json").read_text(encoding="utf-8")
@@ -128,8 +137,47 @@ for faq_id, topic, source_id, question in faq_sources:
         )
     prepared_rows.append((faq_id, topic, question, answer))
 
+if args.full:
+    impossible_count = len(impossible_source_ids)
+    blank_question_count = sum(
+        not isinstance(row.get("question"), str)
+        or not row["question"].strip()
+        for row in all_source_rows
+    )
+    blank_answer_count = sum(
+        not isinstance(row.get("answer"), str) or not row["answer"].strip()
+        for row in all_source_rows
+    )
+    full_rows = []
+    for source in source_rows:
+        raw_question = source.get("question")
+        raw_answer = source.get("answer")
+        if (
+            not isinstance(raw_question, str)
+            or not isinstance(raw_answer, str)
+            or not raw_question.strip()
+            or not raw_answer.strip()
+        ):
+            continue
+        full_rows.append(source)
+    print("impossible source rows:", impossible_count)
+    print("blank source questions:", blank_question_count)
+    print("blank source answers:", blank_answer_count)
+    print("complete answerable source rows:", len(full_rows))
+
+    selected_source_ids = {source_id for _, _, source_id, _ in faq_sources}
+    for source in full_rows:
+        source_id = source["id"]
+        if source_id in selected_source_ids:
+            continue
+        question = " ".join(source["question"].split())
+        answer = " ".join(source["answer"].split())
+        prepared_rows.append(
+            (f"TECHQA-{source_id}", "unclassified", question, answer)
+        )
+
 print("Prepared FAQs:", len(prepared_rows))
-output_path = Path("data/faq.csv")
+output_path = Path("data/faq-full.csv" if args.full else "data/faq.csv")
 
 with output_path.open("w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
@@ -137,3 +185,6 @@ with output_path.open("w", newline="", encoding="utf-8") as file:
     writer.writerows(prepared_rows)
 
 print("Output:", output_path)
+if args.full:
+    guided_count = sum(row[0].startswith("FAQ-") for row in prepared_rows)
+    print("Guided FAQs:", guided_count)
