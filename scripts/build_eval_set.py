@@ -33,3 +33,23 @@ def paraphrase_rows(evaluation: list[dict]) -> list[dict]:
         for row in evaluation
         if row["answerable"]
     ]
+
+
+def topic_groups(df: pd.DataFrame) -> list[tuple[str, pd.DataFrame]]:
+    return list(df.groupby("topic", sort=True))
+
+
+def topic_list_rows(df: pd.DataFrame) -> list[dict]:
+    questions = []
+    for topic, group in topic_groups(df):
+        questions.append(
+            {
+                "question_id": f"TOPIC-{topic}",
+                "type": "topic_list",
+                "level": "basic",
+                "question": f"Which FAQs cover the {topic} topic?",
+                "gold_cards": group["id"].tolist(),
+                "gold_answers": group["answer"].tolist(),
+            }
+        )
+    return questions
