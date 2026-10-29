@@ -3,17 +3,29 @@ from pathlib import Path
 
 FAQ_FIELDS = ("id", "topic", "question", "answer")
 
+EVALUATION_FIELDS = (
+    "question_id", "question", "gold_faq_id", "expected_answer", "answerable"
+)
 
-def load_faqs(path: Path) -> list[dict[str, str]]:
+
+def _read_rows(path: Path, fields: tuple[str, ...]) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
-        if tuple(reader.fieldnames or ()) != FAQ_FIELDS:
+        if tuple(reader.fieldnames or ()) != fields:
             raise ValueError(
-                f"{path} must have exactly these columns : {", ".join(FAQ_FIELDS)}")
-        rows = list(reader)
+                f"{path} must have exactly these columns: {', '.join(fields)}")
+        rows = []
+        for line_number, row in enumerate(reader, start=2):
+            if None in row or any(value is None for value in row.values()):
+                raise ValueError(
+                    f"{path} row {line_number} does not match its columns")
+            rows.append(row)
+        return rows
+
+def load_faqs(path: Path) -> list[dict[str, str]]:
+    rows = _read_rows(path, FAQ_FIELDS)
     if not rows:
         raise ValueError(f"{path} must contain at least one FAQ")
-
     seen_ids = set()
     for row in rows:
         if any(not row[field] or not row[field].strip() for field in FAQ_FIELDS):
