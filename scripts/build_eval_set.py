@@ -18,3 +18,18 @@ def faq_question_rows(df: pd.DataFrame) -> list[dict]:
         }
         for row in df.itertuples(index=False)
     ]
+
+
+def paraphrase_rows(evaluation: list[dict]) -> list[dict]:
+    return [
+        {
+            "question_id": str(row["question_id"]),
+            "type": "paraphrase",
+            "level": "basic",
+            "question": str(row["question"]),
+            "gold_cards": [str(row["gold_faq_id"])],
+            "gold_answers": [str(row["expected_answer"])],
+        }
+        for row in evaluation
+        if row["answerable"]
+    ]

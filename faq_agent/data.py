@@ -22,6 +22,7 @@ def _read_rows(path: Path, fields: tuple[str, ...]) -> list[dict[str, str]]:
             rows.append(row)
         return rows
 
+
 def load_faqs(path: Path) -> list[dict[str, str]]:
     rows = _read_rows(path, FAQ_FIELDS)
     if not rows:
@@ -45,3 +46,30 @@ def faq_card(record: dict[str, str]) -> str:
         f"Answer: {record['answer']}"
     ]
     return "\n".join(lines)
+
+
+def load_evaluation(path: Path) -> list[dict[str, str | bool]]:
+    rows = _read_rows(path, EVALUATION_FIELDS)
+    result = []
+    seen_ids = set()
+    for row in rows:
+        row = {field: value.strip() for field, value in row.items()}
+        if not row["question_id"] or not row["question"]:
+            raise ValueError(f"{path} has a blank question id or question")
+        if row["question_id"] in seen_ids:
+            raise ValueError(
+                f"{path} has duplicate question id {row['question_id']}")
+        if row["answerable"] not in ("true", "false"):
+            raise ValueError(f"{path} answerable values must be true or false")
+        answerable = row["answerable"] == "true"
+        has_gold = bool(row["gold_faq_id"])
+        has_expected = bool(row["expected_answer"])
+        if answerable and not (has_gold and has_expected):
+            raise ValueError(
+                f"{path} answerable rows need a gold ID and expected answer")
+        if not answerable and (has_gold or has_expected):
+            raise ValueError(
+                f"{path} answerability does not match its gold fields")
+        seen_ids.add(row["question_id"])
+        result.append({**row, "answerable": answerable})
+    return result
