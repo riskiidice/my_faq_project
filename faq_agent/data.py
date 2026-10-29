@@ -1,3 +1,4 @@
+import json
 import csv
 from pathlib import Path
 
@@ -73,3 +74,52 @@ def load_evaluation(path: Path) -> list[dict[str, str | bool]]:
         seen_ids.add(row["question_id"])
         result.append({**row, "answerable": answerable})
     return result
+
+
+def load_questions(path: Path) -> list[dict]:
+    required = {
+        "question_id", "type", "level", "question", "gold_cards",
+        "gold_answers", "answerable", "split",
+    }
+    questions = []
+    seen_ids = set()
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                f"{path} line {line_number} is not valid JSON") from error
+        if not isinstance(row, dict) or set(row) != required:
+            raise ValueError(f"{path} line {line_number} has the wrong fields")
+        text_fields = ("question_id", "type", "level", "question", "split")
+        if not all(isinstance(row[key], str) and row[key] for key in text_fields):
+            raise ValueError(
+                f"{path} line {line_number} has a blank text field")
+        if row["question_id"] in seen_ids:
+            raise ValueError(
+                f"{path} has duplicate question id {row['question_id']}")
+        if row["level"] not in {"basic", "hard"}:
+            raise ValueError(f"{path} line {line_number} has an invalid level")
+        if row["split"] not in {"tuning", "heldout"}:
+            raise ValueError(f"{path} line {line_number} has an invalid split")
+        if not isinstance(row["gold_cards"], list) or not all(
+            isinstance(value, str) for value in row["gold_cards"]
+        ):
+            raise ValueError(
+                f"{path} line {line_number} has invalid gold_cards")
+        if not isinstance(row["gold_answers"], list) or not all(
+            isinstance(value, str) for value in row["gold_answers"]
+        ):
+            raise ValueError(
+                f"{path} line {line_number} has invalid gold_answers")
+        if not isinstance(row["answerable"], bool):
+            raise ValueError(
+                f"{path} line {line_number} has invalid answerable")
+        if row["answerable"] != bool(row["gold_cards"]):
+            raise ValueError(
+                f"{path} line {line_number} has inconsistent answerability")
+        seen_ids.add(row["question_id"])
+        questions.append(row)
+    return questions
