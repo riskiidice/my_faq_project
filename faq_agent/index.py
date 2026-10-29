@@ -29,16 +29,18 @@ def save_rows(rows: list[dict], path: Path) -> None:
 def load_rows(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
+
 def make_index(rows: list[dict]) -> QdrantClient:
     client = QdrantClient(":memory:")
     client.create_collection("faqs", vectors_config=models.VectorParams(
         size=len(rows[0]["vector"]), distance=models.Distance.COSINE))
     client.upsert("faqs", points=[
         models.PointStruct(id=i, vector=row["vector"],
-            payload={key: row[key] for key in ("id", "topic", "question", "answer", "text")})
+                           payload={key: row[key] for key in ("id", "topic", "question", "answer", "text")})
         for i, row in enumerate(rows)
     ])
     return client
+
 
 def search_vectors(client, vector: list[float], top_k: int) -> list[dict]:
     points = client.query_points(
