@@ -15,3 +15,6 @@ save_rows(rows, path)
 print("rows:", len(rows))
 print("vector length:", len(rows[0]["vector"]))
 print("file bytes:", path.stat().st_size)
+
+
+
